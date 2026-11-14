@@ -43,6 +43,15 @@ a { color: var(--gold); }
 .ludo-card { background: #FFF8EC; }
 .snakes-card { background: #E6F6EE; }
 .game-card.picked { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(255,197,61,0.35); }
+a.game-card { text-decoration: none; transition: transform 0.12s ease, box-shadow 0.12s ease; }
+a.game-card:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(0,0,0,0.35); }
+.game-card .go { margin-left: auto; flex: none; width: 40px; height: 40px; border-radius: 50%; background: var(--ink); color: #FFFFFF; display: grid; place-items: center; }
+.game-card.hero { cursor: default; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.tags span { font-size: 12px; font-weight: 600; color: #2B3050; background: rgba(20,24,46,0.08); padding: 3px 8px; border-radius: 999px; }
+.section-title { margin: 6px 0 0; font: 800 22px var(--display); }
+.panel.invite { border: 2px solid var(--gold); }
+a.icon-btn { color: var(--text); }
 .game-text { display: flex; flex-direction: column; gap: 4px; }
 .game-text strong { font: 800 24px/1 var(--display); }
 .game-text span { font-size: 14px; line-height: 1.4; color: #4A4F6A; }
