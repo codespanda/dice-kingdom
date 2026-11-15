@@ -35,7 +35,7 @@ writeFileSync('dist/404.html', html.replace('<head>', '<head>\n    <meta name="r
 const today = new Date().toISOString().slice(0, 10)
 writeFileSync('dist/sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${['', ...ROUTES.map((r) => r.path), 'cricket/', 'fry-defender/', 'sneeze-rocket/', 'cat-tower/'].map((p) => `  <url><loc>https://games.codespanda.com/${p}</loc><lastmod>${today}</lastmod></url>`).join('\n')}
+${['', ...ROUTES.map((r) => r.path), 'cricket/', 'ludo-hd/', 'fry-defender/', 'sneeze-rocket/', 'cat-tower/'].map((p) => `  <url><loc>https://games.codespanda.com/${p}</loc><lastmod>${today}</lastmod></url>`).join('\n')}
 </urlset>
 `)
 writeFileSync('dist/robots.txt', 'User-agent: *\nAllow: /\n\nSitemap: https://games.codespanda.com/sitemap.xml\n')

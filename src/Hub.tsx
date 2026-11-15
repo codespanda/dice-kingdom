@@ -149,6 +149,28 @@ const SnakesArt = (
   </svg>
 )
 
+const LudoHdArt = (
+  <svg viewBox="0 0 320 190" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <rect width="320" height="190" fill="#2A1F3D" />
+    <circle cx="40" cy="30" r="46" fill="#3E7BFA" opacity="0.22" /><circle cx="292" cy="170" r="56" fill="#E5484D" opacity="0.2" />
+    <circle cx="282" cy="24" r="30" fill="#F2B10C" opacity="0.18" />
+    <g transform="translate(108 30) rotate(8 52 64)">
+      <rect width="104" height="104" rx="18" fill="#FFF8EE" />
+      <rect x="8" y="8" width="40" height="40" rx="10" fill="#E5484D" /><rect x="56" y="8" width="40" height="40" rx="10" fill="#2FA46C" />
+      <rect x="56" y="56" width="40" height="40" rx="10" fill="#F2B10C" /><rect x="8" y="56" width="40" height="40" rx="10" fill="#3E7BFA" />
+      <circle cx="52" cy="52" r="12" fill="#FFFFFF" />
+    </g>
+    <g transform="translate(58 116) rotate(-14)">
+      <rect width="44" height="44" rx="11" fill="#FFFFFF" />
+      <g fill="#2A1F3D"><circle cx="12" cy="12" r="4.5" /><circle cx="32" cy="12" r="4.5" /><circle cx="12" cy="22" r="4.5" /><circle cx="32" cy="22" r="4.5" /><circle cx="12" cy="32" r="4.5" /><circle cx="32" cy="32" r="4.5" /></g>
+    </g>
+    <g transform="translate(232 112) rotate(12)">
+      <rect width="34" height="34" rx="9" fill="#FFFFFF" />
+      <g fill="#2A1F3D"><circle cx="9" cy="9" r="3.5" /><circle cx="17" cy="17" r="3.5" /><circle cx="25" cy="25" r="3.5" /></g>
+    </g>
+  </svg>
+)
+
 function cricketBest() {
   try { const b = JSON.parse(read('rcBest') || 'null'); return b?.runs ? `${b.runs} runs` : '—' } catch { return '—' }
 }
@@ -156,6 +178,7 @@ function cricketBest() {
 const CARDS: Card[] = [
   { id: 'cricket', name: 'Reality Cricket T20', href: '/cricket/', desc: 'A 3D T20 match in your browser. Win the toss, bat or bowl, and chase down the target over two innings.', tags: ['Sports', '3D'], filters: ['Sports'], best: cricketBest, art: CricketArt },
   { id: 'ludo', name: 'Ludo', href: '/ludo', spa: true, desc: 'Roll a 6 to leave your yard, capture rivals and race all four tokens home. Play on one phone, vs the computer or online.', tags: ['Board game', 'Online'], filters: ['Board games'], best: () => '2–4 players', art: LudoArt },
+  { id: 'ludo-hd', name: 'Ludo HD', href: '/ludo-hd/', desc: 'Ludo with crisp HD graphics. Play the computer, or make a room and share its ID so friends can join from anywhere.', tags: ['Board game', 'Online'], filters: ['Board games'], best: () => '2–4 players', art: LudoHdArt },
   { id: 'snakes', name: 'Snakes & Ladders', href: '/snakes-and-ladders', spa: true, desc: 'Roll a 1 to enter, climb the ladders, dodge the snakes and land exactly on 100. With friends or online.', tags: ['Board game', 'Online'], filters: ['Board games'], best: () => '2–4 players', art: SnakesArt },
   { id: 'fry', name: 'Fry Defender', href: '/fry-defender/', desc: 'Pigeons want your fries. Bonk them before they grab one, and whatever you do, do not bonk the cat.', tags: ['Tap', 'Reflexes'], filters: ['Tap'], best: () => num('silly-pigeons-best'), art: FryArt },
   { id: 'sneeze', name: 'Sneeze Rocket', href: '/sneeze-rocket/', desc: 'Hold to build up a sneeze, let go and launch yourself into the sky. Hold too long and it misfires.', tags: ['Hold & release', 'Distance'], filters: ['Hold & release'], best: () => num('silly-sneeze-best', ' m'), art: SneezeArt },
@@ -230,7 +253,7 @@ export function Hub({ onOpen, onOnline }: { onOpen: (path: string) => void; onOn
           <div className="hub-hero-text">
             <span className="hub-pill"><Ico d={I.ticket} />Free to play · no sign-up</span>
             <h1>Silly little <span>games</span> for your coffee break</h1>
-            <p>Six free browser games: quick arcade bonks, a 3D T20 cricket match, and Ludo and Snakes &amp; Ladders to play with friends online. Nothing to install: open one on your phone, turn the sound on and play.</p>
+            <p>Seven free browser games: quick arcade bonks, a 3D T20 cricket match, and Ludo and Snakes &amp; Ladders to play with friends online. Nothing to install: open one on your phone, turn the sound on and play.</p>
             <div className="hub-hero-cta">
               <a className="hub-btn" href={FEATURED.href} onClick={open(FEATURED)}><Ico d={I.play} fill />Play {FEATURED.name}</a>
               <a className="hub-btn hub-btn-ghost hub-hide-sm" href="#under-the-hood"><Ico d={I.code} />See how they’re built</a>
