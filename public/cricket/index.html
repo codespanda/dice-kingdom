@@ -94,7 +94,7 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 #fh{position:absolute;left:12px;top:100px;background:var(--red);font-family:var(--display);letter-spacing:.1em;font-size:14px;padding:3px 10px;border-radius:6px;display:none}
 
 /* Screens */
-.scr{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:20px 18px calc(22px + env(safe-area-inset-bottom,0px));background:linear-gradient(rgba(5,14,26,.15),rgba(5,14,26,.9) 45%,rgba(5,14,26,.98));overflow-y:auto}
+.scr{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;justify-content:safe flex-end;padding:20px 18px calc(22px + env(safe-area-inset-bottom,0px));background:linear-gradient(rgba(5,14,26,.15),rgba(5,14,26,.9) 45%,rgba(5,14,26,.98));overflow-y:auto}
 .scr.center{justify-content:center;background:rgba(5,14,26,.9)}
 .logo{font-family:var(--display);font-weight:700;line-height:.92;margin:0 0 6px;font-size:56px;letter-spacing:.02em}
 .logo em{font-style:normal;color:var(--gold)}
@@ -110,6 +110,11 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .cta{width:100%;background:var(--mint);color:#04210f;font-family:var(--display);font-weight:700;letter-spacing:.1em;font-size:22px;padding:14px;border-radius:14px;margin-top:4px;box-shadow:0 6px 0 #1e8f55}
 .cta:active{transform:translateY(3px);box-shadow:0 3px 0 #1e8f55}
 .ghost{width:100%;background:transparent;border:1px solid var(--line);border-radius:14px;padding:12px;font-weight:700;margin-top:10px}
+/* Links back to the games hub at games.codespanda.com */
+.homelink{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;margin-bottom:12px;padding:8px 14px;border-radius:999px;background:rgba(12,32,55,.85);border:1px solid var(--line);color:var(--fg);font-weight:700;font-size:14px;text-decoration:none}
+.homelink:hover{border-color:var(--dim)}
+.exitlink{display:block;box-sizing:border-box;text-align:center;color:var(--dim);text-decoration:none}
+.exitlink:hover{color:var(--fg)}
 .how{display:grid;gap:6px;margin:0 0 16px;padding:0;list-style:none;font-size:13px;color:var(--dim);line-height:1.4}
 .how b{color:var(--fg)}
 .best{font-size:12px;color:var(--dim);text-align:center;margin-top:12px}
@@ -179,6 +184,7 @@ td.n{font-weight:700}
   </div>
 
   <div id="menu" class="scr">
+    <a class="homelink" href="/">&larr; All games</a>
     <h1 class="logo">REALITY<br><em>CRICKET</em><span class="tag">T20</span></h1>
     <p class="sub" id="sub0">Full 3D night match. Chase the target against a real bowling attack and a live field. Swipe to hit, time it right.</p>
     <div class="row"><div class="lab">Play as</div>
@@ -221,6 +227,7 @@ td.n{font-weight:700}
     <h2 style="margin-bottom:16px">PAUSED</h2>
     <button class="cta" id="resume">RESUME</button>
     <button class="ghost" id="quit">Quit to menu</button>
+    <a class="ghost exitlink" href="/">Exit to all games</a>
   </div>
 
   <div id="toss" class="scr center" hidden>
@@ -242,6 +249,7 @@ td.n{font-weight:700}
     <div id="eCard"></div>
     <button class="cta" id="again">PLAY AGAIN</button>
     <button class="ghost" id="toMenu">Change match settings</button>
+    <a class="ghost exitlink" href="/">Exit to all games</a>
   </div>
 </div>
 
