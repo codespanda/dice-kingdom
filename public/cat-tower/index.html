@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#f6d7b0">
+<title>Cat Tower</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #f6d7b0; }
+  canvas { display: block; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+  a.back { position: fixed; top: max(10px, env(safe-area-inset-top)); left: 10px; z-index: 2; font: 700 15px system-ui, sans-serif;
+           color: #fff; background: rgba(0,0,0,.45); padding: 8px 12px; border-radius: 999px; text-decoration: none; }
+</style>
+</head>
+<body>
+<a class="back" href="/">← All games</a>
+<canvas id="c"></canvas>
+<script src="/shared.js"></script>
+<script>
+const S = Silly, ctx = S.ctx;
+const BEST_KEY = 'silly-cats-best';
+const FACES = ['🐱', '😺', '😸', '😹', '😼', '😽', '🙀', '😾'];
+const NAMES = ['Sir Fluffington', 'Chairman Meow', 'Mr. Biscuits', 'Toe Beans', 'Captain Loaf', 'Meowzart', 'Purrlock Holmes',
+  'Catrick Swayze', 'Bob', 'Professor Whiskers', 'Lady Floofsworth', 'Kevin', 'Duchess Chonk', 'Pawl McCartney', 'Gary',
+  'Count Catula', 'Fuzz Aldrin', 'Meowly Cyrus', 'The Void', 'Tuna Turner', 'Clawdia', 'Sergeant Snooze'];
+const OVER_LINES = ['Gravity: 1. Cats: 0.', 'The cats have filed a complaint.', 'That is a lot of offended cats.', 'Nobody saw that. Nobody.'];
+const LEAN_MAX = 2.2;
+
+let state = 'menu', stack, drop, hang, falling, lives, score, lean, swingT, cam, best = S.getBest(BEST_KEY), overAt = 0, overLine = '', nextAt = 0, shake = 0;
+
+function CS() { return Math.min(72, S.W / 5.5); }      // cat size
+function CH() { return CS() * 0.78; }                   // stacking height per cat
+function baseY() { return S.H - 70 + cam; }            // screen y of the sofa top
+function sway(t) { return Math.sin(t * 1.7) * lean; }
+function catX(i, t) { return stack[i].x + sway(t) * i * 2; }
+
+function reset() {
+  stack = []; drop = null; falling = []; lives = 3; score = 0; lean = 0; swingT = 0; cam = 0; S.pops = [];
+  newHang();
+}
+function newHang() { hang = { e: S.pick(FACES), name: S.pick(NAMES) }; }
+
+function topX(t) { return stack.length ? catX(stack.length - 1, t) : S.W / 2; }
+function targetY() { return baseY() - stack.length * CH() - CH() / 2; }
+
+S.onDown(() => {
+  if (state === 'menu') { reset(); state = 'play'; S.beep(660, .1); return; }
+  if (state === 'over') { if (performance.now() - overAt > 800) { reset(); state = 'play'; } return; }
+  if (!hang || drop) return;
+  drop = { x: hangX(), y: hangY(), vy: 0, e: hang.e, name: hang.name };
+  hang = null;
+  S.beep(800, .15, 'triangle', .07, 400);
+});
+
+function hangX() { return S.W / 2 + Math.sin(swingT) * S.W * 0.34; }
+function hangY() { return 110; }
+
+function land(t) {
+  const off = drop.x - topX(t), cs = CS();
+  const tolerance = stack.length ? cs * 0.62 : 85; // sofa is wide
+  if (Math.abs(off) > tolerance) {
+    lives--; shake = 10;
+    falling.push({ x: drop.x, y: drop.y, vx: Math.sign(off || 1) * 4, vy: -5, rot: 0, e: '🙀' });
+    S.pop(S.pick(['MROWW!', 'HISS', 'I meant to do that', 'betrayal!']), drop.x, drop.y - 40, '#ff6b6b', 22);
+    S.beep(1200, .3, 'sawtooth', .06, 300);
+    if (lives <= 0) return gameOver();
+  } else {
+    const n = stack.length;
+    stack.push({ x: drop.x - sway(t) * n * 2, e: drop.e, name: drop.name, squish: 1 });
+    score++;
+    if (Math.abs(off) < 6 && n > 0) {
+      lean *= 0.5; score++;
+      S.pop('PURRFECT!', drop.x, drop.y - 50, '#ffd23f', 28);
+      S.beep(880, .1); setTimeout(() => S.beep(1320, .18), 90);
+    } else {
+      if (n > 0) lean += (off / cs) * 0.55;
+      S.pop(drop.name, drop.x, drop.y - 46, '#fff', 17);
+      // meow: quick pitch bend up then down
+      S.beep(S.rand(500, 800), .12, 'sawtooth', .05, 1100); setTimeout(() => S.beep(900, .18, 'sawtooth', .04, 400), 110);
+    }
+    if (Math.abs(lean) > 1.4 && Math.abs(lean) <= LEAN_MAX) S.pop('wobbly...', S.W / 2, S.H * 0.3, '#ff9f1c', 22);
+    if (Math.abs(lean) > LEAN_MAX) return collapse(t);
+  }
+  drop = null; nextAt = performance.now() + 350;
+}
+
+function collapse(t) {
+  shake = 18;
+  stack.forEach((c, i) => falling.push({ x: catX(i, t), y: baseY() - i * CH() - CH() / 2, vx: S.rand(-6, 6) + lean * 2, vy: -S.rand(3, 12), rot: 0, e: '🙀' }));
+  stack = [];
+  S.pop('TIMBERRR!', S.W / 2, S.H * 0.35, '#ff6b6b', 36);
+  S.noise(0.6, 0.3, 600);
+  gameOver();
+}
+
+function gameOver() {
+  state = 'over'; overAt = performance.now(); overLine = S.pick(OVER_LINES); drop = null;
+  if (score > best) { best = score; S.setBest(BEST_KEY, best); }
+}
+
+function update(dt, t) {
+  swingT += dt * Math.min(0.075, 0.03 + stack.length * 0.0025);
+  if (!hang && !drop && performance.now() > nextAt) newHang();
+  if (drop) {
+    drop.vy += 0.7 * dt; drop.y += drop.vy * dt;
+    if (drop.y >= targetY()) { drop.y = targetY(); land(t); }
+  }
+  // camera keeps the top of the tower in the middle of the screen
+  const want = Math.max(0, stack.length * CH() - S.H * 0.42);
+  cam += (want - cam) * Math.min(1, 0.08 * dt);
+}
+
+function drawBg(t) {
+  const { W, H } = S;
+  // room → sky → space as the tower grows
+  const h = cam / (CH() * 30);
+  const k = Math.min(1, h);
+  const top = k < 0.5 ? mix('#f6d7b0', '#6fc3ff', k * 2) : mix('#6fc3ff', '#0b0f2e', (k - 0.5) * 2);
+  ctx.fillStyle = top; ctx.fillRect(0, 0, W, H);
+  if (k > 0.6) {
+    ctx.fillStyle = 'rgba(255,255,255,' + (k - 0.6) * 2 + ')';
+    for (let i = 0; i < 60; i++) ctx.fillRect((i * 137.5) % W, (i * 71.3 + cam * 0.2) % H, 2, 2);
+  }
+  // wallpaper stripes + window near the ground
+  const by = baseY();
+  if (k < 0.5) {   // wallpaper fades out as we climb into the sky
+    ctx.fillStyle = 'rgba(214,160,110,' + (0.35 * (1 - k * 2)) + ')';
+    for (let x = 0; x < W; x += 40) ctx.fillRect(x, 0, 16, Math.min(H, by + 200));
+  }
+  if (by - 400 < H) {
+    ctx.fillStyle = '#a7dcff'; ctx.fillRect(W * 0.1, by - 300, 90, 110);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 6; ctx.strokeRect(W * 0.1, by - 300, 90, 110);
+    ctx.beginPath(); ctx.moveTo(W * 0.1 + 45, by - 300); ctx.lineTo(W * 0.1 + 45, by - 190); ctx.stroke();
+    S.emoji('🪴', W * 0.86, by - 30, 60);
+    ctx.fillStyle = '#8b5a2b'; ctx.fillRect(0, by + 30, W, H);
+    S.emoji('🛋️', W / 2, by + 10, 190);
+  }
+}
+
+function mix(a, b, k) {
+  const pa = [1, 3, 5].map(i => parseInt(a.substr(i, 2), 16)), pb = [1, 3, 5].map(i => parseInt(b.substr(i, 2), 16));
+  return 'rgb(' + pa.map((v, i) => Math.round(v + (pb[i] - v) * k)).join(',') + ')';
+}
+
+function draw(t, dt) {
+  const { W, H } = S, cs = CS();
+  ctx.save();
+  if (shake > 0) { ctx.translate(S.rand(-shake, shake), S.rand(-shake, shake)); shake = Math.max(0, shake - dt); }
+  drawBg(t);
+  // tower
+  stack.forEach((c, i) => {
+    if (c.squish > 0) c.squish = Math.max(0, c.squish - dt * 0.06);
+    const sq = 1 + Math.sin(c.squish * Math.PI) * 0.25;
+    const y = baseY() - i * CH() - CH() / 2;
+    if (y < -cs || y > H + cs) return;
+    ctx.save(); ctx.translate(catX(i, t), y + cs / 2); ctx.scale(sq, 1 / sq);
+    S.emoji(c.e, 0, -cs / 2, cs, sway(t) * 0.05 * i / Math.max(1, stack.length));
+    ctx.restore();
+  });
+  // crane + hanging cat
+  if (state === 'play') {
+    const hx = hangX(), hy = hangY();
+    ctx.strokeStyle = '#333'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(hx, hy - cs / 2); ctx.stroke();
+    if (hang) {
+      S.emoji(hang.e, hx, hy, cs, Math.cos(swingT) * 0.3);
+      S.text(hang.name, hx, hy + cs * 0.65, 13, '#fff');
+    }
+  }
+  if (drop) S.emoji(drop.e, drop.x, drop.y, cs);
+  for (const f of falling) {
+    f.vy += 0.5 * dt; f.x += f.vx * dt; f.y += f.vy * dt; f.rot += 0.15 * dt;
+    S.emoji(f.e, f.x, f.y, cs, f.rot);
+  }
+  falling = falling.filter(f => f.y < H + 100);
+  S.drawPops(dt);
+  ctx.restore();
+
+  if (state === 'play') {
+    S.text(score + ' 🐾', W - 14, 34, 26, '#fff', true, 'right');
+    S.text('🐟'.repeat(lives), W - 14, 64, 18, '#fff', true, 'right');
+    // wobble meter
+    const mw = Math.min(160, W * 0.4), mx = W / 2 - mw / 2, my = 96;
+    ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.fillRect(mx, my, mw, 10);
+    const k = Math.min(1, Math.abs(lean) / LEAN_MAX);
+    ctx.fillStyle = k > 0.65 ? '#ff4b4b' : k > 0.35 ? '#ffd23f' : '#5ee06a';
+    ctx.fillRect(W / 2, my, Math.sign(lean) * k * mw / 2, 10);
+    ctx.fillStyle = '#fff'; ctx.fillRect(W / 2 - 1, my - 3, 2, 16);
+    S.text('wobble', W / 2, my - 12, 12, '#fff');
+  }
+  if (state === 'menu') {
+    ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(0, 0, W, H);
+    S.emoji('😼', W / 2, H * 0.2, 86, Math.sin(t * 3) * 0.2);
+    S.text('CAT TOWER', W / 2, H * 0.33, Math.min(46, W / 8), '#ffd23f');
+    S.text('TAP to drop a cat.', W / 2, H * 0.42, 18);
+    S.text('Stack them as high as possible.', W / 2, H * 0.42 + 26, 18);
+    S.text('Sloppy drops make the tower wobble.', W / 2, H * 0.54, 15, '#ffe8c4');
+    S.text('Dead-centre = PURRFECT (less wobble).', W / 2, H * 0.54 + 24, 15, '#ffe8c4');
+    S.text('TAP TO START', W / 2, H * 0.7 + Math.sin(t * 5) * 4, 26);
+    if (best) S.text('Best: ' + best, W / 2, H * 0.78, 16, '#eee');
+  }
+  if (state === 'over') {
+    ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(0, 0, W, H);
+    S.text('CAT-ASTROPHE', W / 2, H * 0.3, Math.min(40, W / 9), '#ff6b6b');
+    S.text(overLine, W / 2, H * 0.38, 17, '#eee');
+    S.text(score + ' 🐾', W / 2, H * 0.5, 40, '#ffd23f');
+    S.text(score >= best && score > 0 ? '🎉 NEW BEST! 🎉' : 'Best: ' + best, W / 2, H * 0.58, 18);
+    if (performance.now() - overAt > 800) S.text('Tap to try again', W / 2, H * 0.7 + Math.sin(t * 5) * 4, 22);
+  }
+}
+
+reset(); // set up an empty tower so the start screen can draw
+S.loop((dt, t) => {
+  if (state === 'play') update(dt, t);
+  draw(t, dt);
+});
+</script>
+</body>
+</html>

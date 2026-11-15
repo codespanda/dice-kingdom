@@ -2,10 +2,12 @@ import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode 
 import { sfx, unlock } from './audio'
 import { GameScreen, type SeatInfo } from './components/GameScreen'
 import { Icon } from './components/Icon'
+import { JoinForm, NameField, useName } from './components/Join'
+import { Hub } from './Hub'
 import { useAuthority } from './game/useAuthority'
 import { applyAction, newGame, type Action, type GameKind, type GameState } from './games/engine'
 import { SNAKE_PLAYER_COLORS } from './games/snakes'
-import { cleanCode, makeCode, myId, onlineAvailable, Room } from './net/room'
+import { makeCode, myId, onlineAvailable, Room } from './net/room'
 
 /* ---------------------------------------------------------------- Catalogue and routing */
 
@@ -33,7 +35,7 @@ const SnakesArt = (
 export const GAMES: GameInfo[] = [
   {
     kind: 'ludo', path: '/ludo', name: 'Ludo', tone: 'ludo-card', art: LudoArt,
-    blurb: 'Roll a 6 to leave your yard, capture rivals, build blocks and race all four tokens home.',
+    blurb: 'Roll a 6 to leave your yard, capture rivals and race all four tokens home.',
     title: 'Play Ludo Online Free — with Friends or the Computer | CodesPanda Games',
     description: 'Play Ludo free in your browser: pass and play on one phone, against the computer, or online with friends using a room code.',
   },
@@ -44,8 +46,8 @@ export const GAMES: GameInfo[] = [
     description: 'Play Snakes and Ladders free in your browser: on one phone, against the computer, or online with friends using a room code.',
   },
 ]
-const HUB_TITLE = 'CodesPanda Games — Play Ludo and Snakes & Ladders Free Online'
-const HUB_DESC = 'Free board games in your browser: Ludo and Snakes & Ladders. Play with friends on one phone, against the computer, or online with a room code.'
+const HUB_TITLE = 'CodesPanda Games — Free Browser Games: Cricket, Ludo, Snakes & Ladders'
+const HUB_DESC = 'Free games in your browser: Reality Cricket T20, Ludo and Snakes & Ladders online with friends, and quick arcade games. No download, no sign-up.'
 
 const gameByPath = (p: string) => GAMES.find((g) => g.path === p.replace(/\/+$/, ''))
 const gameByKind = (k: GameKind) => GAMES.find((g) => g.kind === k)!
@@ -74,9 +76,6 @@ function usePath() {
 const load = (k: string, d: string) => { try { return localStorage.getItem(k) ?? d } catch { return d } }
 const save = (k: string, v: string) => { try { localStorage.setItem(k, v) } catch { /* ignore */ } }
 
-function roomFromUrl() {
-  try { return cleanCode(new URLSearchParams(location.search).get('room') ?? '') } catch { return '' }
-}
 function setUrlRoom(code: string | null) {
   try {
     const u = new URL(location.href)
@@ -106,97 +105,7 @@ export default function App() {
   if (game) {
     return <GamePage key={game.kind} game={game} onBack={() => go('/')} onLocal={(n, cpu) => setPlay({ s: 'local', kind: game.kind, n, cpu })} onOnline={startOnline} />
   }
-  return <Hub onOpen={(g) => go(g.path)} onOnline={startOnline} />
-}
-
-/* ---------------------------------------------------------------- Hub: the list of games */
-
-function useName() {
-  const [name, setName] = useState(load('dk-name', ''))
-  useEffect(() => { save('dk-name', name) }, [name])
-  return [name, setName] as const
-}
-
-function NameField({ name, setName }: { name: string; setName: (v: string) => void }) {
-  return (
-    <label className="field">
-      <span className="label">Your name</span>
-      <input className="input" value={name} maxLength={16} placeholder="Player" onChange={(e) => setName(e.target.value)} autoComplete="nickname" />
-    </label>
-  )
-}
-
-function JoinForm({ name, onOnline }: { name: string; onOnline: (r: Room, code: string) => void }) {
-  const [code, setCode] = useState(roomFromUrl())
-  const join = () => {
-    unlock()
-    const c = cleanCode(code)
-    if (c.length === 4) onOnline(new Room(c, name.trim() || 'Player', false), c)
-  }
-  return (
-    <div className="join">
-      <label className="field grow">
-        <span className="label">Room code</span>
-        <input className="input code" value={code} placeholder="ABCD" maxLength={4} autoCapitalize="characters" autoComplete="off"
-          onChange={(e) => setCode(cleanCode(e.target.value))} onKeyDown={(e) => { if (e.key === 'Enter') join() }} />
-      </label>
-      <button type="button" className="btn btn-gold" disabled={cleanCode(code).length !== 4} onClick={join}>Join</button>
-    </div>
-  )
-}
-
-function Hub({ onOpen, onOnline }: { onOpen: (g: GameInfo) => void; onOnline: (r: Room, code: string) => void }) {
-  const [name, setName] = useName()
-  const [help, setHelp] = useState(false)
-  const invited = roomFromUrl().length === 4
-  return (
-    <div className="screen home">
-      <header className="topbar">
-        <div className="brand"><Icon name="logo" size={40} /><span>CodesPanda Games</span></div>
-        <button type="button" className="icon-btn" aria-label="How to play" onClick={() => setHelp(true)}><Icon name="help" /></button>
-      </header>
-
-      <div className="intro">
-        <h1>Free board games, right in your browser.</h1>
-        <p>No download, no sign-up. Play with friends on one phone, against the computer, or online with a room code.</p>
-      </div>
-
-      {invited && onlineAvailable && (
-        <section className="panel invite" aria-label="Join your friend’s room">
-          <h2><Icon name="users" size={20} />You’ve been invited</h2>
-          <NameField name={name} setName={setName} />
-          <JoinForm name={name} onOnline={onOnline} />
-        </section>
-      )}
-
-      <section aria-label="Games" className="games">
-        <h2 className="section-title">Games</h2>
-        {GAMES.map((g) => (
-          <a key={g.kind} href={g.path} className={`game-card ${g.tone}`} onClick={(e) => { e.preventDefault(); onOpen(g) }}>
-            {g.art}
-            <span className="game-text">
-              <strong>{g.name}</strong>
-              <span>{g.blurb}</span>
-              <span className="tags"><span>2–4 players</span><span>vs Computer</span><span>Online</span></span>
-            </span>
-            <span className="go" aria-hidden="true"><Icon name="arrow" /></span>
-          </a>
-        ))}
-      </section>
-
-      {!invited && onlineAvailable && (
-        <section className="panel" aria-label="Join a room">
-          <h2><Icon name="globe" size={20} />Got a room code?</h2>
-          <p className="muted">A friend made a room and sent you its 4-letter code. Enter it to join their game.</p>
-          <NameField name={name} setName={setName} />
-          <JoinForm name={name} onOnline={onOnline} />
-        </section>
-      )}
-
-      <p className="foot">Made by <a href="https://codespanda.com" target="_blank" rel="noreferrer">CodesPanda</a> · Online rooms keep no data after the game.</p>
-      {help && <HowToPlay onClose={() => setHelp(false)} />}
-    </div>
-  )
+  return <Hub onOpen={(p) => go(p)} onOnline={startOnline} />
 }
 
 /* ---------------------------------------------------------------- One game's page */
@@ -280,7 +189,6 @@ function HowToPlay({ onClose, only }: { onClose: () => void; only?: GameKind }) 
               <li>Roll a 6 to bring a token out of your yard.</li>
               <li>Go clockwise round the board, then up your coloured lane. You need the exact roll to get home.</li>
               <li>Land on a rival to send them back to their yard. Star and start squares are safe.</li>
-              <li>Two of your tokens on one square make a block that nobody can pass.</li>
               <li>A 6, a capture or a token home earns another roll. Three 6s in a row lose your turn.</li>
             </ul>
           </>

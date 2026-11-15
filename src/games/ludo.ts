@@ -1,6 +1,6 @@
 // Ludo rules engine. Pure functions over plain, JSON-safe state so the same state can be
 // played locally or sent over the network. Rules: a token leaves the yard on a 6;
-// blocks; three 6s lose the turn; play continues for 2nd and 3rd place.
+// three 6s lose the turn; play continues for 2nd and 3rd place. No blocks.
 
 export type Color = 'red' | 'green' | 'yellow' | 'blue'
 
@@ -72,21 +72,10 @@ export function newLudo(names: string[]): LudoState {
 
 const trackIdx = (s: LudoState, seat: number, p: number) => (LUDO_COLORS[s.colors[seat]].start + p) % 52
 
-/** Two or more tokens of one colour on a track square form a block nobody else may land on or pass. */
-export function blockAt(s: LudoState, idx: number, seat: number) {
-  return s.pos.some((toks, o) => o !== seat && toks.filter((p) => p >= 0 && p <= 50 && trackIdx(s, o, p) === idx).length >= 2)
-}
-
 export function canMove(s: LudoState, seat: number, token: number, d = s.die) {
   const p = s.pos[seat][token]
-  if (p === -1) return d === ENTRY_ROLL && !blockAt(s, LUDO_COLORS[s.colors[seat]].start, seat)
-  if (p + d > HOME) return false
-  for (let k = 1; k <= d; k++) {
-    const q = p + k
-    if (q > 50) break
-    if (blockAt(s, trackIdx(s, seat, q), seat)) return false
-  }
-  return true
+  if (p === -1) return d === ENTRY_ROLL
+  return p + d <= HOME
 }
 
 export const movableTokens = (s: LudoState) => [0, 1, 2, 3].filter((i) => canMove(s, s.turn, i))
@@ -114,14 +103,7 @@ export function ludoRoll(s: LudoState, d: number): LudoState {
   const next = { ...base, sixes }
   const opts = movableTokens(next)
   if (!opts.length) {
-    const blocked = [0, 1, 2, 3].some((i) => {
-      const p = s.pos[s.turn][i]
-      return p === -1 ? d === ENTRY_ROLL : p + d <= HOME
-    })
-    return {
-      ...next, phase: 'nomove', sound: 'nomove',
-      msg: `${name} rolled ${d}. ${blocked ? 'A block is in the way, so no token can move.' : 'No token can move.'}${d === 6 ? ' Roll again.' : ''}`,
-    }
+    return { ...next, phase: 'nomove', sound: 'nomove', msg: `${name} rolled ${d}. No token can move.${d === 6 ? ' Roll again.' : ''}` }
   }
   return { ...next, phase: 'move', sound: '', msg: `${name} rolled ${d}. Pick a glowing token.` }
 }
@@ -148,8 +130,6 @@ export function ludoMove(s: LudoState, token: number): LudoState {
 
   if (np <= 50) {
     const idx = trackIdx(s, seat, np)
-    const mine = pos[seat].filter((q) => q >= 0 && q <= 50 && trackIdx(s, seat, q) === idx).length
-    if (mine === 2) { msg = `${name} made a block! Opponents can’t pass it.`; sound = 'block' }
     if (!LUDO_SAFE.includes(idx)) {
       pos.forEach((toks, o) => {
         if (o === seat) return
@@ -202,7 +182,6 @@ export function ludoCpuChoice(s: LudoState) {
     if (np <= 50) {
       const idx = trackIdx(s, seat, np)
       if (LUDO_SAFE.includes(idx)) v += 30
-      s.pos[seat].forEach((q, j) => { if (j !== i && q >= 0 && q <= 50 && trackIdx(s, seat, q) === idx) v += 25 })
       s.pos.forEach((toks, o) => {
         if (o !== seat) toks.forEach((q) => { if (q >= 0 && q <= 50 && trackIdx(s, o, q) === idx && !LUDO_SAFE.includes(idx)) v += 150 })
       })

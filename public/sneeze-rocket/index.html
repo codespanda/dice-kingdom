@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#8fd3ff">
+<title>Sneeze Rocket</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #8fd3ff; }
+  canvas { display: block; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+  a.back { position: fixed; top: max(10px, env(safe-area-inset-top)); left: 10px; z-index: 2; font: 700 15px system-ui, sans-serif;
+           color: #fff; background: rgba(0,0,0,.45); padding: 8px 12px; border-radius: 999px; text-decoration: none; }
+</style>
+</head>
+<body>
+<a class="back" href="/">← All games</a>
+<canvas id="c"></canvas>
+<script src="/shared.js"></script>
+<script>
+const S = Silly, ctx = S.ctx;
+const BEST_KEY = 'silly-sneeze-best';
+const R = 22;           // player radius
+const G = 0.35;         // gravity
+let state, p, items, parts, power, misfireAt, nextItemX, camX, camY, bonus, best = S.getBest(BEST_KEY), doneAt, holding;
+
+function groundY() { return S.H - 90; }
+
+function reset() {
+  state = 'ready'; power = 0; holding = false; bonus = 1; camX = 0; camY = 0; parts = []; S.pops = [];
+  p = { x: 90, y: -R, vx: 0, vy: 0, rot: 0 };
+  items = []; nextItemX = 520;
+  misfireAt = 1 + S.rand(0.04, 0.25);
+}
+reset();
+
+function genItems() {
+  while (nextItemX < camX + S.W * 2.5) {
+    const r = Math.random();
+    let it;
+    if (r < 0.30) it = { kind: 'cow', e: '🐄', size: 64, y: -30 };
+    else if (r < 0.48) it = { kind: 'cactus', e: '🌵', size: 58, y: -28 };
+    else if (r < 0.75) it = { kind: 'balloon', e: '🎈', size: 46, y: -S.rand(130, 420) };
+    else if (r < 0.90) it = { kind: 'pepper', e: '🌶️', size: 40, y: -S.rand(25, 300) };
+    else it = { kind: 'snail', e: '🐌', size: 40, y: -20 };
+    it.x = nextItemX; it.used = false;
+    items.push(it);
+    nextItemX += S.rand(240, 560);
+  }
+  items = items.filter(it => it.x > camX - 200 && !it.gone);
+}
+
+function puff(x, y, n, dir) {
+  for (let i = 0; i < n; i++) parts.push({ x, y, vx: dir * S.rand(2, 9), vy: S.rand(-4, 3), life: 1, e: S.pick(['💨', '💦', '✨']) });
+}
+
+function sneezeSound(strength) {
+  S.noise(0.35 + strength * 0.3, 0.15 + strength * 0.25, 1500 + strength * 1500);
+  S.beep(700, 0.25, 'sawtooth', 0.05, 200);
+}
+
+function launch(pw, misfire) {
+  state = 'flying';
+  const v = 5 + pw * 22, a = 38 * Math.PI / 180;
+  p.vx = v * Math.cos(a); p.vy = -v * Math.sin(a);
+  puff(p.x - 10, p.y, 14, -1);
+  sneezeSound(pw);
+  if (misfire) S.pop('pfft.', p.x + 20, p.y - 50, '#ddd', 24);
+  else if (pw > 0.85) S.pop('PERFECT ACHOO!!', p.x + 60, p.y - 70, '#ffd23f', 28);
+  else S.pop('CHOO!', p.x + 40, p.y - 60, '#fff', 26);
+}
+
+S.onDown(() => {
+  if (state === 'ready') { state = 'charging'; holding = true; power = 0; return; }
+  if (state === 'flying' && bonus > 0) {
+    bonus--; p.vx += 6; p.vy = Math.min(p.vy, -8);
+    puff(p.x - 10, p.y, 10, -1); sneezeSound(0.6);
+    S.pop('ACHOO!', p.x + 30, p.y - 50, '#ffd23f', 24);
+    return;
+  }
+  if (state === 'done' && performance.now() - doneAt > 700) reset();
+});
+S.onUp(() => {
+  if (state === 'charging' && holding) { holding = false; launch(Math.min(power, 1), false); }
+});
+
+function update(dt) {
+  if (state === 'charging') {
+    power += dt * 0.0065 * (1 + power);
+    if (power >= misfireAt) { holding = false; launch(0.22, true); }
+    return;
+  }
+  if (state !== 'flying') return;
+  p.vy += G * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+
+  // ground contact
+  if (p.y > -R) {
+    p.y = -R;
+    if (p.vy > 2.5) { p.vy = -p.vy * 0.45; p.vx *= 0.82; S.beep(160, .08, 'sine', .1); }
+    else { p.vy = 0; p.vx *= Math.pow(0.965, dt); }
+    p.rot += p.vx / R * dt;
+    if (p.vx < 0.15 && p.vy === 0) finish();
+  } else p.rot += 0.02 * p.vx * dt;
+
+  for (const it of items) {
+    if (it.used) continue;
+    if (Math.hypot(it.x - p.x, it.y - p.y) > R + it.size * 0.42) continue;
+    it.used = true;
+    if (it.kind === 'cow') {
+      p.vy = -Math.max(11, Math.abs(p.vy) * 1.05); p.vx = p.vx * 1.08 + 1;
+      S.pop(S.pick(['MOO?!', 'excuse me', 'boing', 'I am not a trampoline']), it.x, it.y - 50, '#fff', 20);
+      S.beep(120, .35, 'sawtooth', .08, 80); S.beep(300, .2, 'sine', .08, 900);
+      it.squish = 1;
+    } else if (it.kind === 'cactus') {
+      p.vx *= 0.35; p.vy = -4;
+      S.pop(S.pick(['OUCH', 'pointy!', 'why is there a cactus']), it.x, it.y - 50, '#ff6b6b', 22);
+      S.beep(500, .15, 'square', .08, 1200);
+    } else if (it.kind === 'balloon') {
+      p.vy = -11; p.vx += 1; it.gone = true;
+      S.pop('POP!', it.x, it.y, '#ff6b6b', 26); S.noise(0.08, 0.4, 3000);
+    } else if (it.kind === 'pepper') {
+      bonus++; it.gone = true;
+      S.pop('+1 SNEEZE', it.x, it.y - 30, '#ff9f1c', 22); S.beep(600, .1); S.beep(900, .15);
+    } else if (it.kind === 'snail') {
+      p.vx *= 0.6; p.vy = Math.min(p.vy, -3);
+      S.pop(S.pick(['hey!', 'slow down', 'I was napping']), it.x, it.y - 40, '#b9ffb0', 18);
+      S.beep(220, .2, 'triangle', .08, 110);
+    }
+  }
+  for (const it of items) if (it.squish) it.squish = Math.max(0, it.squish - dt * 0.05);
+
+  // camera
+  camX = Math.max(0, p.x - S.W * 0.3);
+  const targetY = Math.min(0, p.y + groundY() - 130);
+  camY += (targetY - camY) * Math.min(1, 0.2 * dt);
+  genItems();
+}
+
+function finish() {
+  state = 'done'; doneAt = performance.now();
+  const m = Math.floor(p.x / 10);
+  if (m > best) { best = m; S.setBest(BEST_KEY, best); }
+  S.beep(330, .15); setTimeout(() => S.beep(262, .3), 150);
+}
+
+function rank(m) {
+  if (m < 30) return 'Mild allergy';
+  if (m < 80) return 'Pollen enthusiast';
+  if (m < 160) return 'Hay fever hero';
+  if (m < 300) return 'Certified Sneeze-o-naut';
+  return 'Legendary Nostril';
+}
+
+function face() {
+  if (state === 'ready') return '😐';
+  if (state === 'charging') return power < 0.45 ? '😐' : power < 0.8 ? '😮' : power < 1 ? '😫' : '🥵';
+  if (state === 'done') return '😵';
+  return p.vy < 0 ? '🤧' : '😵‍💫';
+}
+
+function draw(t, dt) {
+  const { W, H } = S, gy = groundY();
+  const sx = x => x - camX, sy = y => gy + y - camY;
+  // sky
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#4fb2f0'); g.addColorStop(1, '#c8ecff');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // clouds (parallax)
+  for (let i = 0; i < 8; i++) {
+    const cx = ((i * 380 - camX * 0.25) % (W + 400) + W + 400) % (W + 400) - 200;
+    S.emoji('☁️', cx, sy(-300 - (i % 3) * 120) * 0.6 + 40, 60 + (i % 3) * 20);
+  }
+  // hills
+  ctx.fillStyle = '#7ccf6a';
+  for (let i = -1; i < W / 200 + 2; i++) {
+    const hx = i * 200 - (camX * 0.5) % 200;
+    ctx.beginPath(); ctx.arc(hx, sy(0) + 40, 130, Math.PI, 0); ctx.fill();
+  }
+  // ground
+  ctx.fillStyle = '#5aa84a'; ctx.fillRect(0, sy(0), W, H);
+  ctx.fillStyle = '#8b5a2b'; ctx.fillRect(0, sy(0) + 16, W, H);
+  // distance markers every 50m
+  for (let m = Math.floor(camX / 500) * 50; m * 10 < camX + W + 100; m += 50) {
+    if (m <= 0) continue;
+    const mx = sx(m * 10);
+    ctx.fillStyle = '#6b4423'; ctx.fillRect(mx - 3, sy(0) - 50, 6, 50);
+    ctx.fillStyle = '#fff3c4'; ctx.fillRect(mx - 26, sy(0) - 70, 52, 26);
+    S.text(m + 'm', mx, sy(0) - 57, 14, '#5a3a1a', false);
+  }
+  // best marker
+  if (best > 0) {
+    const bx = sx(best * 10);
+    if (bx > -50 && bx < W + 50) { S.emoji('🚩', bx, sy(0) - 30, 36); S.text('best', bx, sy(0) - 62, 13); }
+  }
+  // items
+  for (const it of items) {
+    if (it.gone) continue;
+    const sq = it.squish ? 1 - Math.sin(it.squish * Math.PI) * 0.35 : 1;
+    ctx.save(); ctx.translate(sx(it.x), sy(it.y) + it.size * 0.4); ctx.scale(1 / sq, sq);
+    const bob = it.kind === 'balloon' ? Math.sin(t * 2 + it.x) * 6 : 0;
+    S.emoji(it.e, 0, -it.size * 0.4 + bob, it.size, 0, it.kind === 'cow');
+    ctx.restore();
+  }
+  // launch chair
+  S.emoji('🪑', sx(70), sy(-24), 48);
+  // particles
+  for (const q of parts) {
+    q.x += q.vx * dt; q.y += q.vy * dt; q.vy += 0.1 * dt; q.life -= 0.02 * dt;
+    ctx.globalAlpha = Math.max(0, q.life); S.emoji(q.e, sx(q.x), sy(q.y), 22); ctx.globalAlpha = 1;
+  }
+  parts = parts.filter(q => q.life > 0);
+  // player (charging = shaking)
+  const shakeAmt = state === 'charging' ? power * 4 : 0;
+  S.emoji(face(), sx(p.x) + S.rand(-shakeAmt, shakeAmt), sy(p.y) + S.rand(-shakeAmt, shakeAmt), R * 2.2 * (1 + (state === 'charging' ? power * 0.25 : 0)), state === 'charging' ? 0 : p.rot);
+  if (state === 'charging') {
+    const ah = 'a' + 'h'.repeat(1 + Math.floor(power * 6)) + '.'.repeat(1 + Math.floor((t * 3) % 3));
+    S.text(ah, sx(p.x) + 20, sy(p.y) - 50, 18 + power * 16);
+  }
+  S.drawPops(dt);
+}
+
+// pops are stored in world coordinates; convert to screen in a wrapper
+const _drawPops = S.drawPops;
+S.drawPops = (dt) => {
+  const gy = groundY();
+  S.pops.forEach(q => { q.x = q.x - camX; q.y = gy + q.y - camY; });
+  _drawPops(dt);
+  // back to world coords (keeping the float-up animation)
+  S.pops.forEach(q => { q.x = q.x + camX; q.y = q.y - gy + camY; });
+};
+
+function hud(t) {
+  const { W, H } = S;
+  if (state === 'flying' || state === 'done' || state === 'charging') {
+    S.text(Math.floor(p.x / 10) + ' m', W - 14, 34, 26, '#fff', true, 'right');
+    S.text('🌶️ sneezes: ' + bonus, W - 14, 64, 15, '#fff', true, 'right');
+  }
+  if (state === 'charging') {
+    // power meter
+    const mx = 24, my = H * 0.25, mh = H * 0.4, mw = 22;
+    ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.fillRect(mx - 4, my - 4, mw + 8, mh + 8);
+    ctx.fillStyle = 'rgba(80,220,100,.5)'; ctx.fillRect(mx, my + mh * 0.0, mw, mh * 0.15);
+    const pv = Math.min(1, power);
+    ctx.fillStyle = power > 1 ? '#ff4b4b' : power > 0.85 ? '#5ee06a' : '#ffd23f';
+    ctx.fillRect(mx, my + mh * (1 - pv), mw, mh * pv);
+    S.text('LET GO', mx + mw / 2, my - 18, 13);
+  }
+  if (state === 'flying' && bonus > 0) S.text('tap = mid-air ACHOO', W / 2, H - 40, 15, '#fff');
+  if (state === 'ready') {
+    ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(0, 0, W, H);
+    S.emoji('🤧', W / 2, H * 0.2, 80, Math.sin(t * 3) * 0.15);
+    S.text('SNEEZE ROCKET', W / 2, H * 0.33, Math.min(42, W / 9), '#ffd23f');
+    S.text('HOLD to build up a sneeze.', W / 2, H * 0.42, 18);
+    S.text('LET GO just before it bursts!', W / 2, H * 0.42 + 26, 18);
+    S.text('Hold too long and... pfft.', W / 2, H * 0.42 + 52, 15, '#ffe0e0');
+    S.text('🐄 bounce  🎈 lift  🌶️ extra sneeze', W / 2, H * 0.58, 15, '#eaffea');
+    S.text('HOLD ANYWHERE', W / 2, H * 0.68 + Math.sin(t * 5) * 4, 26);
+    if (best) S.text('Best: ' + best + ' m', W / 2, H * 0.76, 16, '#eee');
+  }
+  if (state === 'done') {
+    ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(0, 0, W, H);
+    const m = Math.floor(p.x / 10);
+    S.text(m + ' metres', W / 2, H * 0.3, 44, '#ffd23f');
+    S.text(rank(m), W / 2, H * 0.38, 20, '#fff');
+    S.text(m >= best ? '🎉 NEW BEST! 🎉' : 'Best: ' + best + ' m', W / 2, H * 0.46, 18, '#eee');
+    S.text('Bless you.', W / 2, H * 0.53, 16, '#ccc');
+    if (performance.now() - doneAt > 700) S.text('Tap to sneeze again', W / 2, H * 0.66 + Math.sin(t * 5) * 4, 22);
+  }
+}
+
+S.loop((dt, t) => { update(dt); draw(t, dt); hud(t); });
+</script>
+</body>
+</html>

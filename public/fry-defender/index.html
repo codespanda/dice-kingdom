@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#7cc46a">
+<title>Fry Defender</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #7cc46a; }
+  canvas { display: block; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+  a.back { position: fixed; top: max(10px, env(safe-area-inset-top)); left: 10px; z-index: 2; font: 700 15px system-ui, sans-serif;
+           color: #fff; background: rgba(0,0,0,.45); padding: 8px 12px; border-radius: 999px; text-decoration: none; }
+</style>
+</head>
+<body>
+<a class="back" href="/">← All games</a>
+<canvas id="c"></canvas>
+<script src="/shared.js"></script>
+<script>
+const S = Silly, ctx = S.ctx;
+const BEST_KEY = 'silly-pigeons-best';
+const BONK_LINES = ['COO?!', 'rude.', 'BONK', 'not the beak!', 'I have a family', 'worth it', 'my lawyer will hear of this', 'ow ow ow', 'I was just looking!', 'unsubscribe'];
+const STEAL_LINES = ['yoink', 'mine now', 'tax', 'finders keepers', 'thank u', '*happy coo*'];
+const CAT_LINES = ['YOU BONKED THE CAT?!', 'the cat is disappointed', 'cat files complaint'];
+const OVER_LINES = ['The pigeons have unionized.', 'You have been out-cooed.', 'Fries: 0. Pigeons: thriving.', 'They will tell stories of this day.'];
+
+let state = 'menu', birds = [], fries = 10, score = 0, combo = 0, time = 0, spawnTimer = 0, best = S.getBest(BEST_KEY), overAt = 0, overLine = '', shake = 0;
+
+function reset() {
+  birds = []; fries = 10; score = 0; combo = 0; time = 0; spawnTimer = 0; S.pops = [];
+}
+
+function spawn() {
+  const { W, H } = S, side = Math.floor(Math.random() * 4), m = 40;
+  const x = side === 0 ? -m : side === 1 ? W + m : S.rand(0, W);
+  const y = side === 2 ? -m : side === 3 ? H + m : S.rand(H * 0.15, H * 0.95);
+  const r = Math.random(), lvl = Math.min(1, time / 3600);
+  let b;
+  if (r < 0.08) b = { kind: 'cat', e: '🐈', hp: 1, speed: 0.6, size: 50, pts: 0 };
+  else if (r < 0.16) b = { kind: 'gold', e: '🐤', hp: 1, speed: 2.4, size: 40, pts: 5 };
+  else if (r < 0.32 + lvl * 0.15) b = { kind: 'chonk', e: '🦃', hp: 3, speed: 0.55, size: 62, pts: 3 };
+  else b = { kind: 'pigeon', e: '🐦', hp: 1, speed: 1 + lvl * 0.9, size: 46, pts: 1 };
+  b.x = x; b.y = y; b.mode = 'walk'; b.t = Math.random() * 10; b.rot = 0; b.vx = 0; b.vy = 0; b.hit = 0;
+  // Cats just stroll across, ignoring the fries
+  if (b.kind === 'cat') { b.tx = W - x + S.rand(-80, 80); b.ty = H - y + S.rand(-80, 80); }
+  birds.push(b);
+}
+
+function center() { return { x: S.W / 2, y: S.H * 0.55 }; }
+
+S.onDown((px, py) => {
+  if (state === 'menu') { reset(); state = 'play'; S.beep(520, .1); S.beep(780, .15); return; }
+  if (state === 'over') { if (performance.now() - overAt > 700) { reset(); state = 'play'; } return; }
+  // Find closest tappable thing (generous radius for thumbs)
+  let hit = null, bestD = 1e9;
+  for (const b of birds) {
+    if (b.mode !== 'walk') continue;
+    const d = Math.hypot(b.x - px, b.y - py);
+    if (d < b.size * 0.9 + 14 && d < bestD) { hit = b; bestD = d; }
+  }
+  if (!hit) { combo = 0; S.beep(140, .08, 'sine', .05); return; }
+  if (hit.kind === 'cat') {
+    fries = Math.max(0, fries - 2); combo = 0; shake = 12;
+    hit.mode = 'flee'; hit.vx = (hit.x < S.W / 2 ? -1 : 1) * 7; hit.vy = -2;
+    S.pop(S.pick(CAT_LINES), hit.x, hit.y - 40, '#ff6b6b', 20); S.pop('-2 🍟', hit.x, hit.y, '#ff6b6b', 26);
+    S.beep(900, .25, 'sawtooth', .06, 300);
+    if (fries <= 0) gameOver();
+    return;
+  }
+  hit.hp--; hit.hit = 6; shake = 4;
+  if (hit.hp > 0) { S.pop('BONK', hit.x, hit.y - 30, '#ffd23f', 20); S.beep(260, .07, 'square', .07); return; }
+  combo++;
+  const pts = hit.pts * Math.min(5, 1 + Math.floor(combo / 5));
+  score += pts;
+  hit.mode = 'fly'; hit.vx = S.rand(-6, 6); hit.vy = -S.rand(9, 13);
+  S.pop(S.pick(BONK_LINES), hit.x, hit.y - 34, '#fff', 20);
+  S.pop('+' + pts, hit.x + 30, hit.y, hit.kind === 'gold' ? '#ffd23f' : '#b9ffb0', 22);
+  if (combo % 5 === 0) S.pop(combo + ' COMBO!', S.W / 2, S.H * 0.25, '#ff9f1c', 32);
+  S.beep(400 + Math.min(combo, 20) * 30, .12, 'square', .07, 900);
+});
+
+function update(dt) {
+  time += dt;
+  spawnTimer -= dt;
+  const interval = Math.max(18, 70 - time / 60);
+  if (spawnTimer <= 0) { spawn(); if (time > 1800 && Math.random() < .3) spawn(); spawnTimer = interval; }
+  const c = center();
+  for (const b of birds) {
+    b.t += dt; if (b.hit > 0) b.hit -= dt;
+    if (b.mode === 'walk') {
+      const tx = b.kind === 'cat' ? b.tx : c.x, ty = b.kind === 'cat' ? b.ty : c.y;
+      const dx = tx - b.x, dy = ty - b.y, d = Math.hypot(dx, dy) || 1;
+      // waddle: speed pulses with each step
+      const step = b.speed * (0.6 + 0.6 * Math.abs(Math.sin(b.t * 0.25))) * dt;
+      b.x += dx / d * step; b.y += dy / d * step; b.face = dx > 0;
+      if (b.kind === 'cat' && d < 10) b.mode = 'gone';
+      if (b.kind !== 'cat' && d < 46) {
+        fries--; combo = 0; shake = 8;
+        b.mode = 'steal'; b.vx = (b.x < c.x ? -1 : 1) * 4; b.vy = -6;
+        S.pop(S.pick(STEAL_LINES), b.x, b.y - 40, '#ff6b6b', 20);
+        S.beep(300, .2, 'triangle', .08, 120);
+        if (fries <= 0 && state === 'play') gameOver();
+      }
+    } else {
+      b.x += b.vx * dt; b.y += b.vy * dt;
+      if (b.mode === 'fly') { b.vy += 0.35 * dt; b.rot += 0.3 * dt; }
+      else { b.vy -= 0.05 * dt; }
+      if (b.y > S.H + 100 || b.y < -150 || b.x < -150 || b.x > S.W + 150) b.mode = 'gone';
+    }
+  }
+  birds = birds.filter(b => b.mode !== 'gone');
+}
+
+function gameOver() {
+  state = 'over'; overAt = performance.now(); overLine = S.pick(OVER_LINES);
+  if (score > best) { best = score; S.setBest(BEST_KEY, best); }
+  S.beep(400, .3, 'sawtooth', .07, 100); setTimeout(() => S.beep(200, .5, 'sawtooth', .07, 60), 250);
+}
+
+function drawPark(t) {
+  const { W, H } = S;
+  ctx.fillStyle = '#7cc46a'; ctx.fillRect(0, 0, W, H);
+  // grass tufts (deterministic)
+  ctx.fillStyle = '#6ab35a';
+  for (let i = 0; i < 40; i++) {
+    const gx = (i * 97.3) % W, gy = (i * 53.7 * 7) % H;
+    ctx.beginPath(); ctx.ellipse(gx, gy, 14, 5, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  const c = center();
+  // picnic blanket
+  ctx.save(); ctx.translate(c.x, c.y);
+  ctx.fillStyle = '#fff'; ctx.fillRect(-80, -55, 160, 110);
+  ctx.fillStyle = '#e94b4b';
+  for (let i = 0; i < 8; i++) for (let j = 0; j < 6; j++) if ((i + j) % 2 === 0) ctx.fillRect(-80 + i * 20, -55 + j * 18.33, 20, 18.33);
+  ctx.restore();
+}
+
+function draw(t, dt) {
+  const { W, H } = S, c = center();
+  ctx.save();
+  if (shake > 0) ctx.translate(S.rand(-shake, shake), S.rand(-shake, shake));
+  drawPark(t);
+  // fries box shows how many remain
+  const fs = 64 + Math.sin(t * 3) * 2;
+  S.emoji('🍟', c.x, c.y - 4, fs);
+  S.text('×' + Math.max(0, fries), c.x + 44, c.y + 30, 22, fries <= 3 ? '#ff6b6b' : '#fff');
+
+  for (const b of birds) {
+    const bob = b.mode === 'walk' ? Math.sin(b.t * 0.5) * 4 : 0;
+    const tilt = b.mode === 'walk' ? Math.sin(b.t * 0.25) * 0.18 : b.rot;
+    const sz = b.size * (b.hit > 0 ? 1.25 : 1);
+    S.emoji(b.e, b.x, b.y + bob, sz, tilt, b.face);
+    if (b.mode === 'steal') S.emoji('🍟', b.x + 10, b.y + 18, 24, 0.4);
+    if (b.kind === 'chonk' && b.mode === 'walk') {
+      for (let i = 0; i < b.hp; i++) S.emoji('❤️', b.x - 12 + i * 12, b.y - b.size * 0.65, 11);
+    }
+    if (b.kind === 'cat' && b.mode === 'walk') S.text("don't bonk", b.x, b.y - 38, 12, '#fff');
+  }
+  S.drawPops(dt);
+  ctx.restore();
+
+  if (state === 'play') {
+    S.text('Score ' + score, W - 12, 34, 22, '#fff', true, 'right');
+    if (combo >= 3) S.text('combo ×' + combo, W - 12, 62, 16, '#ffd23f', true, 'right');
+  }
+  if (state === 'menu') {
+    ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(0, 0, W, H);
+    S.emoji('🐦', W / 2, H * 0.24, 90, Math.sin(t * 4) * 0.2);
+    S.text('FRY DEFENDER', W / 2, H * 0.38, Math.min(44, W / 9), '#ffd23f');
+    S.text('Bonk pigeons before they', W / 2, H * 0.47, 18);
+    S.text('steal your fries.', W / 2, H * 0.47 + 26, 18);
+    S.text('🦃 needs 3 bonks   🐤 = bonus', W / 2, H * 0.57, 16, '#b9ffb0');
+    S.text('🐈 Do NOT bonk the cat.', W / 2, H * 0.57 + 26, 16, '#ff9f9f');
+    S.text('TAP TO START', W / 2, H * 0.72 + Math.sin(t * 5) * 4, 26);
+    if (best) S.text('Best: ' + best, W / 2, H * 0.8, 16, '#ddd');
+  }
+  if (state === 'over') {
+    ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(0, 0, W, H);
+    S.text('NO MORE FRIES', W / 2, H * 0.3, Math.min(40, W / 10), '#ff6b6b');
+    S.text(overLine, W / 2, H * 0.38, 17, '#eee');
+    S.text('Score: ' + score, W / 2, H * 0.5, 34, '#ffd23f');
+    S.text('Best: ' + best, W / 2, H * 0.57, 18);
+    if (performance.now() - overAt > 700) S.text('Tap to defend again', W / 2, H * 0.7 + Math.sin(t * 5) * 4, 22);
+  }
+}
+
+S.loop((dt, t) => {
+  if (state === 'play') update(dt);
+  if (shake > 0) shake = Math.max(0, shake - dt);
+  draw(t, dt);
+});
+</script>
+</body>
+</html>

@@ -94,6 +94,20 @@ export function sfx(kind: string) {
     case 'nomove': tone(c, out, t, 200, 150, 0.22, 'square', 0.06); break
     case 'join': notes([659, 880], 0.08, 'triangle', 0.18, 0.2); break
     case 'win': notes([523, 659, 784, 1047, 784, 1047, 1319], 0.12, 'triangle', 0.22, 0.35); break
+    // Cricket
+    case 'bat': hiss(c, out, t, 0.05, 3500, 0.7, 3); tone(c, out, t, 900, 300, 0.08, 'triangle', 0.35); tone(c, out, t, 160, 90, 0.1, 'sine', 0.3); break
+    case 'edge': hiss(c, out, t, 0.04, 5000, 0.4, 4); tone(c, out, t, 1400, 700, 0.05, 'square', 0.06); break
+    case 'bounce': tone(c, out, t, 130, 70, 0.08, 'sine', 0.25); hiss(c, out, t, 0.03, 900, 0.12); break
+    case 'wicket': hiss(c, out, t, 0.12, 2200, 0.5, 2); tone(c, out, t, 600, 200, 0.15, 'square', 0.08); hiss(c, out, t + 0.12, 0.1, 1800, 0.3, 2); break
+    case 'crowd': {
+      const s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain()
+      s.buffer = noise(c); s.loop = true; f.type = 'bandpass'; f.frequency.value = 1100; f.Q.value = 0.6
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.35, t + 0.35); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.2)
+      s.connect(f); f.connect(g); g.connect(out)
+      s.start(t); s.stop(t + 2.3)
+      break
+    }
+    case 'groan': tone(c, out, t, 300, 180, 0.6, 'sawtooth', 0.03); hiss(c, out, t, 0.8, 700, 0.12, 0.8); break
   }
 }
 
