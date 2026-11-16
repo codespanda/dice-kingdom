@@ -346,17 +346,42 @@ function startAmb(){
     const so=AC.createBufferSource();so.buffer=buf;so.loop=true;const f=AC.createBiquadFilter();f.type='lowpass';f.frequency.value=700;const g=AC.createGain();g.gain.value=.045;so.connect(f);f.connect(g);g.connect(AC.destination);so.start();amb={g}}catch(e){}
 }
 let voiceTurn=0;
+/* Spoken commentary. Phones only allow speech that first starts from a tap, so speechUnlock() runs on the
+   first tap/click; voices load asynchronously, so they are cached when ready; and Chrome drops an utterance
+   queued in the same tick as cancel(), so new lines start a moment after cancelling. */
+let VOICES=[],speechReady=false,speakTimer=0;
+function loadVoices(){
+  try{
+    const all=(speechSynthesis.getVoices()||[]).filter(v=>/^en/i.test(v.lang));
+    const rank=v=>(/en[-_]IN/i.test(v.lang)?0:/en[-_]GB/i.test(v.lang)?1:/en[-_]AU/i.test(v.lang)?2:3)+(v.localService?0:.5);
+    VOICES=all.sort((a,b)=>rank(a)-rank(b));
+  }catch(e){}
+}
+if(window.speechSynthesis){loadVoices();try{speechSynthesis.addEventListener('voiceschanged',loadVoices)}catch(e){speechSynthesis.onvoiceschanged=loadVoices}}
+function speechUnlock(){
+  if(speechReady||!window.speechSynthesis)return;speechReady=true;
+  try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u);loadVoices()}catch(e){}
+}
+['pointerdown','touchend','click','keydown'].forEach(ev=>window.addEventListener(ev,speechUnlock,{capture:true,passive:true}));
 function say(t,who){
   if(muted||!window.speechSynthesis)return;
   try{
     const u=new SpeechSynthesisUtterance(t.replace(/<[^>]+>/g,''));
-    const vs=(speechSynthesis.getVoices()||[]).filter(v=>/^en/i.test(v.lang));
+    if(!VOICES.length)loadVoices();
     const w=who===undefined?(voiceTurn^=1):who;
-    if(vs.length)u.voice=vs[w%vs.length];
-    u.pitch=w?.8:1.12;u.rate=w?1:1.1;u.volume=.9;speechSynthesis.speak(u);
+    // Two commentators: two different voices when the device has them, otherwise one voice at two pitches.
+    if(VOICES.length){u.voice=VOICES[w%VOICES.length];u.lang=u.voice.lang}else u.lang='en-IN';
+    u.pitch=w?.8:1.12;u.rate=w?1:1.1;u.volume=.9;
+    if(speechSynthesis.paused)speechSynthesis.resume();
+    speechSynthesis.speak(u);
   }catch(e){}
 }
-function sayLines(lines){if(muted||!window.speechSynthesis)return;try{speechSynthesis.cancel()}catch(e){}lines.forEach(l=>say(l.t,l.w))}
+function sayLines(lines){
+  if(muted||!window.speechSynthesis||!lines||!lines.length)return;
+  try{speechSynthesis.cancel()}catch(e){}
+  clearTimeout(speakTimer);
+  speakTimer=setTimeout(()=>{if(!muted)lines.forEach(l=>say(l.t,l.w))},80);
+}
 function buzz(ms){try{navigator.vibrate&&navigator.vibrate(ms)}catch(e){}}
 
 /* ============ match ============ */
