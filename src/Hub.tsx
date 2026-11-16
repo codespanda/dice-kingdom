@@ -89,25 +89,9 @@ const CatsArt = (
   </svg>
 )
 
-const CricketArt = (
-  <svg viewBox="0 0 320 190" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-    <rect width="320" height="190" fill="#0A1E38" />
-    <rect width="320" height="40" fill="#06142A" />
-    <g fill="#FFF7D6"><circle cx="40" cy="26" r="26" opacity="0.12" /><circle cx="40" cy="26" r="16" opacity="0.18" /><circle cx="280" cy="26" r="26" opacity="0.12" /><circle cx="280" cy="26" r="16" opacity="0.18" /></g>
-    <g fill="#FFF7D6"><rect x="30" y="20" width="20" height="10" rx="2" /><rect x="270" y="20" width="20" height="10" rx="2" /></g>
-    <rect y="62" width="320" height="26" fill="#1B2D4A" />
-    <g fill="#38507A">{Array.from({ length: 40 }, (_, i) => <circle key={i} cx={6 + i * 8} cy={70 + (i % 3) * 6} r="2.2" />)}</g>
-    <path d="M0 88 H320 V190 H0 Z" fill="#2F9A4A" />
-    <path d="M0 88 H320 V104 H0 Z M0 120 H320 V140 H0 Z M0 160 H320 V182 H0 Z" fill="#2A8C43" />
-    <path d="M140 90 H180 L214 190 H106 Z" fill="#D8C48E" />
-    <path d="M118 158 H202" stroke="#FFFFFF" strokeWidth="2" />
-    <g fill="#F4EBD0"><rect x="153" y="84" width="2.4" height="12" /><rect x="159" y="84" width="2.4" height="12" /><rect x="165" y="84" width="2.4" height="12" /></g>
-    <g transform="translate(206 112) rotate(-38)">
-      <rect x="-5" y="-48" width="10" height="26" rx="3" fill="#2B2B33" />
-      <path d="M-10 -24 H10 L8 34 Q0 40 -8 34 Z" fill="#F2D9A6" stroke="#B88A4A" strokeWidth="1.5" />
-    </g>
-    <circle cx="232" cy="74" r="7" fill="#D7263D" /><path d="M226 72 Q232 76 238 72" stroke="#FFFFFF" strokeWidth="1" fill="none" />
-  </svg>
+/** Real screenshot of the batting view (1200x630), also the cricket page's sharing image. */
+const CricketThumb = (
+  <img src="/cricket/thumb.jpg" alt="" width="1200" height="630" decoding="async" />
 )
 
 const LudoArt = (
@@ -176,7 +160,7 @@ function cricketBest() {
 }
 
 const CARDS: Card[] = [
-  { id: 'cricket', name: 'Reality Cricket T20', href: '/cricket/', desc: 'T20 cricket in 3D. Swipe to play every shot, aim your bowling, or play a full match with a toss, DRS reviews and scorecards.', tags: ['Sports', '3D', 'Cricket'], filters: ['Sports'], best: cricketBest, art: CricketArt },
+  { id: 'cricket', name: 'Reality Cricket T20', href: '/cricket/', desc: 'T20 cricket in 3D. Swipe to play every shot, aim your bowling, or play a full match with a toss, DRS reviews and scorecards.', tags: ['Sports', '3D', 'Cricket'], filters: ['Sports'], best: cricketBest, art: CricketThumb },
   { id: 'ludo', name: 'Ludo', href: '/ludo', spa: true, desc: 'Roll a 6 to leave your yard, capture rivals and race all four tokens home. Play on one phone, vs the computer or online.', tags: ['Board game', 'Online'], filters: ['Board games'], best: () => '2–4 players', art: LudoArt },
   { id: 'ludo-hd', name: 'Ludo HD', href: '/ludo-hd/', desc: 'Ludo with crisp HD graphics. Play the computer, or make a room and share its ID so friends can join from anywhere.', tags: ['Board game', 'Online'], filters: ['Board games'], best: () => '2–4 players', art: LudoHdArt },
   { id: 'snakes', name: 'Snakes & Ladders', href: '/snakes-and-ladders', spa: true, desc: 'Roll a 1 to enter, climb the ladders, dodge the snakes and land exactly on 100. With friends or online.', tags: ['Board game', 'Online'], filters: ['Board games'], best: () => '2–4 players', art: SnakesArt },
