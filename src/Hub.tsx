@@ -176,7 +176,7 @@ function cricketBest() {
 }
 
 const CARDS: Card[] = [
-  { id: 'cricket', name: 'Reality Cricket T20', href: '/cricket/', desc: 'A 3D T20 match in your browser. Win the toss, bat or bowl, and chase down the target over two innings.', tags: ['Sports', '3D'], filters: ['Sports'], best: cricketBest, art: CricketArt },
+  { id: 'cricket', name: 'Reality Cricket T20', href: '/cricket/', desc: 'T20 cricket in 3D. Swipe to play every shot, aim your bowling, or play a full match with a toss, DRS reviews and scorecards.', tags: ['Sports', '3D', 'Cricket'], filters: ['Sports'], best: cricketBest, art: CricketArt },
   { id: 'ludo', name: 'Ludo', href: '/ludo', spa: true, desc: 'Roll a 6 to leave your yard, capture rivals and race all four tokens home. Play on one phone, vs the computer or online.', tags: ['Board game', 'Online'], filters: ['Board games'], best: () => '2–4 players', art: LudoArt },
   { id: 'ludo-hd', name: 'Ludo HD', href: '/ludo-hd/', desc: 'Ludo with crisp HD graphics. Play the computer, or make a room and share its ID so friends can join from anywhere.', tags: ['Board game', 'Online'], filters: ['Board games'], best: () => '2–4 players', art: LudoHdArt },
   { id: 'snakes', name: 'Snakes & Ladders', href: '/snakes-and-ladders', spa: true, desc: 'Roll a 1 to enter, climb the ladders, dodge the snakes and land exactly on 100. With friends or online.', tags: ['Board game', 'Online'], filters: ['Board games'], best: () => '2–4 players', art: SnakesArt },
